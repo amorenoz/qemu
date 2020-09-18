@@ -45,6 +45,22 @@ uint64_t vhost_user_get_acked_features(NetClientState *nc)
     return s->acked_features;
 }
 
+static void vhost_user_save_acked_features(int queues, NetClientState *ncs[])
+{
+    NetVhostUserState *s;
+    int i;
+
+    for (i = 0; i < queues; i++) {
+        assert(ncs[i]->info->type == NET_CLIENT_DRIVER_VHOST_USER);
+
+        s = DO_UPCAST(NetVhostUserState, nc, ncs[i]);
+
+        if (s->vhost_net) {
+            s->acked_features = vhost_net_get_acked_features(s->vhost_net);
+        }
+    }
+}
+
 static void vhost_user_stop(int queues, NetClientState *ncs[])
 {
     NetVhostUserState *s;
@@ -235,9 +251,7 @@ static void chr_closed_bh(void *opaque)
 
     s = DO_UPCAST(NetVhostUserState, nc, ncs[0]);
 
-    if (s->vhost_net) {
-        s->acked_features = vhost_net_get_acked_features(s->vhost_net);
-    }
+    vhost_user_save_acked_features(queues, ncs);
 
     qmp_set_link(name, false, &err);
 
